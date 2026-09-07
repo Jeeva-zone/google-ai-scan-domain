@@ -62,6 +62,11 @@ def check_rate_limit(client_ip: str) -> Tuple[bool, int]:
     return _global_limiter.check_and_record(safe_ip)
 
 
+def reset_rate_limit() -> None:
+    """Public helper to clear rate limit tracker."""
+    _global_limiter.reset_for_testing()
+
+
 def extract_client_ip(headers: Dict[str, str], remote_addr: Optional[str] = None) -> str:
     """
     Extracts the client IP from proxy headers (x-forwarded-for, x-real-ip) or remote address.

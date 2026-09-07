@@ -4,6 +4,14 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/api/config",
+      "destination": "/api/config.py"
+    },
+    {
+      "source": "/api/reset-rate-limit",
+      "destination": "/api/reset_rate_limit.py"
+    },
+    {
       "source": "/api/scan",
       "destination": "/api/scan.py"
     },

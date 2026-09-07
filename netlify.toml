@@ -1,0 +1,36 @@
+# Netlify Configuration for Orange Test
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  PYTHON_VERSION = "3.10"
+  NODE_VERSION = "20"
+
+[functions]
+  directory = "netlify/functions"
+
+[[redirects]]
+  from = "/api/scan"
+  to = "/.netlify/functions/scan"
+  status = 200
+
+[[redirects]]
+  from = "/api/health"
+  to = "/.netlify/functions/health"
+  status = 200
+
+[[redirects]]
+  from = "/api/config"
+  to = "/.netlify/functions/config"
+  status = 200
+
+[[redirects]]
+  from = "/api/reset-rate-limit"
+  to = "/.netlify/functions/reset_rate_limit"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
