@@ -1,0 +1,4 @@
+# Python dependencies for Orange Test
+# The core scanner relies on Python 3 standard library (urllib, socket, ipaddress, concurrent.futures, csv, json)
+# for near-instant cold starts on Vercel Serverless Functions.
+pytest>=8.0.0
