@@ -2,7 +2,10 @@
 # https://developers.cloudflare.com/workers/static-assets/headers/
 #
 # Vite copies this file from public/ into dist/ during the build; Cloudflare
-# parses it and applies the rules instead of serving it as a file.
+# parses it and applies the rules instead of serving it as a file. Netlify also
+# honours a _headers file in its publish directory, and the syntax is the same,
+# so this file hardens the Netlify deployment too (Vercel uses vercel.json and
+# ignores it).
 
 # --- Security hardening for every response --------------------------------
 # Deliberately no Content-Security-Policy: the app fetches https://crt.sh and
@@ -13,7 +16,8 @@
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
-  X-Frame-Options: DENY
+  # SAMEORIGIN (not DENY) so same-origin frames and preview panes keep working
+  X-Frame-Options: SAMEORIGIN
   Permissions-Policy: geolocation=(), microphone=(), camera=()
 
 # --- Build assets are content-hashed, so they never change ----------------
