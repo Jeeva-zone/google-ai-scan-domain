@@ -21,7 +21,7 @@ Cloudflare matching — runs inside the visitor's browser. Nothing is sent to a 
 7. [Verification evidence](#-verification-evidence)
 8. [Privacy & data flow](#-privacy--data-flow)
 9. [Limitations & honest caveats](#%EF%B8%8F-limitations--honest-caveats)
-10. [Browser requirements](#-browser-requirements)
+10. [Browser requirements](#%EF%B8%8F-browser-requirements)
 11. [Built & hosted on Freebuff Cloud](#%EF%B8%8F-built--hosted-on-freebuff-cloud)
 12. [Running it locally](#%EF%B8%8F-running-it-locally)
 13. [Reproducing the verification](#-reproducing-the-verification)
