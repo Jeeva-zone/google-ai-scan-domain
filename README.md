@@ -6,6 +6,15 @@
 > **Passive subdomain discovery & Cloudflare IP classification engine.**  
 > Effortlessly uncover public subdomains from Certificate Transparency logs and identify which ones are actively fronted by Cloudflare proxy network ranges.
 
+> **☁️ Built, hosted & served on [Freebuff Cloud](https://freebuff.com)** — the development
+> workspace, the build pipeline and the [live website](https://orangecloud.freebuff.app) all run on
+> Freebuff. See [Freebuff Cloud — Build & Hosting](#%EF%B8%8F-freebuff-cloud--build--hosting).
+
+> **🗄️ Branch: `old-backup` (snapshot)** — this branch is the frozen pre-update snapshot of the
+> project (commit `6974c17`). The live site is served from the updated code on the `main` and
+> `client-version` branches, which add the in-browser scan engine and the `sample-domains.txt`
+> workflow. Only this documentation note was added on top of the snapshot.
+
 ---
 
 ## 🚀 One-Click Deployment
@@ -31,6 +40,7 @@ Deploy your own production-ready instance in seconds to **Vercel** or **Netlify*
 - [Configuration & Environment Variables](#-configuration--environment-variables)
 - [Local Development Setup](#-local-development-setup)
 - [Vercel & Netlify Deployment Guide](#-vercel--netlify-deployment-guide)
+- [Freebuff Cloud — Build & Hosting](#%EF%B8%8F-freebuff-cloud--build--hosting)
 - [Docker & Container Deployment](#-docker--container-deployment)
 - [Troubleshooting & FAQs](#-troubleshooting--faqs)
 - [Responsible Use & Security Disclaimer](#-responsible-use--security-disclaimer)
@@ -331,6 +341,64 @@ Orange Test is built with native out-of-the-box support for both **Vercel** and 
    - **Publish directory**: `dist`
    - **Functions directory**: `netlify/functions`
 5. Click **Deploy site**. Netlify will host the frontend and execute the serverless Python functions under `/.netlify/functions/`.
+
+---
+
+## ☁️ Freebuff Cloud — Build & Hosting
+
+Both the development workspace **and** the live website run on **[Freebuff Cloud](https://freebuff.com)**.
+The code lives in this GitHub repository; Freebuff installs, builds and serves it.
+
+- **Live site:** <https://orangecloud.freebuff.app>
+- **Deploy mode:** Freebuff static hosting (`static_vite`) — the build writes static files into `dist/`, which Freebuff serves from its edge.
+- **Deployed code:** the updated code on `main` / `client-version`, whose READMEs and
+  **[CLIENT-VERSION.md](https://github.com/Jeeva-zone/google-ai-scan-domain/blob/client-version/CLIENT-VERSION.md)**
+  document the full setup. This snapshot branch (`old-backup`) still contains the server-engine-only code.
+- **No extra configuration file** — commands are stored in the Freebuff project settings via `freebuff-preview`.
+
+### Configured commands
+
+| Stage | Command | Notes |
+| :--- | :--- | :--- |
+| **Install** | `npm install` | The hosting builder is a Node.js-only image, so `npm` is always available |
+| **Build** | `npm run build` | Runs `vite build` and bundles `server.ts` → `dist/server.cjs`, then exits (never starts a server) |
+| **Preview (dev)** | `bun run dev` | Local dev server on port 3000 (`npm run dev` works too) |
+
+> **Why `npm run build` and not `vite build`?** Calling `vite` directly fails on the hosting builder with
+> `vite: command not found`, because that build shell does not put `node_modules/.bin` on `PATH`.
+> Running the build through the package manager resolves the binaries correctly.
+
+### Deployment workflow
+
+| Task | Command / action |
+| :--- | :--- |
+| **First deploy** | Press **Deploy** in the Freebuff workspace |
+| **Redeploy** | `freebuff-deploy start` (or the Deploy button) |
+| **Pre-flight check** | `freebuff-deploy check` — prints the exact commands hosting will run, without spending a build |
+| **Inspect a deploy** | `freebuff-deploy status` (state, framework, build time) · `freebuff-deploy logs` (build errors) |
+
+### Production environment variables
+
+Production variables are managed separately from the workspace `.env` files (which hold development values):
+
+```bash
+freebuff-deploy env list                                # show configured keys
+freebuff-deploy env set '{"RATE_LIMIT_SECONDS":"60"}'   # applied on the next deploy
+freebuff-deploy env unset RATE_LIMIT_SECONDS
+```
+
+| Variable | Purpose | Default |
+| :--- | :--- | :--- |
+| `MAX_CANDIDATES` | Candidate cap parsed from crt.sh | `1000` |
+| `DNS_CONCURRENCY` | Parallel DNS lookups | `25` |
+| `REQUEST_TIMEOUT` | Outbound HTTP timeout (seconds) | `30` |
+| `MAX_RESULTS` | Maximum returned records | `500` |
+| `RATE_LIMIT_SECONDS` | Per-IP scan cooldown (`0` = disabled) | `0` |
+| `CF_CACHE_TTL_SECONDS` | Cloudflare CIDR cache TTL (seconds) | `3600` |
+
+> **Note on this branch:** Freebuff serves `dist/` only, so the Python API (`api/*.py`) and the Node
+> server are not running in production. The updated branches solve this by running the scan inside
+> the visitor's browser — see `CLIENT-VERSION.md`.
 
 ---
 
