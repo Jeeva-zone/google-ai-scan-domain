@@ -1,7 +1,7 @@
 # Orange Test 🟠
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fusername%2Forange-test&project-name=orange-test&repository-name=orange-test&env=RATE_LIMIT_SECONDS,MAX_CANDIDATES,DNS_CONCURRENCY,REQUEST_TIMEOUT,MAX_RESULTS,CF_CACHE_TTL_SECONDS)
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/username/orange-test)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FJeeva-zone%2Fgoogle-ai-scan-domain&project-name=orange-test&repository-name=orange-test&env=RATE_LIMIT_SECONDS,MAX_CANDIDATES,DNS_CONCURRENCY,REQUEST_TIMEOUT,MAX_RESULTS,CF_CACHE_TTL_SECONDS)
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/Jeeva-zone/google-ai-scan-domain)
 
 > **Passive subdomain discovery & Cloudflare IP classification engine.**  
 > Effortlessly uncover public subdomains from Certificate Transparency logs and identify which ones are actively fronted by Cloudflare proxy network ranges.
@@ -14,10 +14,10 @@ Deploy your own production-ready instance in seconds to **Vercel** or **Netlify*
 
 | Platform | One-Click Deploy Button | Configuration Notes |
 | :--- | :--- | :--- |
-| **Vercel** | [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fusername%2Forange-test&project-name=orange-test&repository-name=orange-test&env=RATE_LIMIT_SECONDS,MAX_CANDIDATES,DNS_CONCURRENCY,REQUEST_TIMEOUT,MAX_RESULTS,CF_CACHE_TTL_SECONDS) | Uses `vercel.json` rewrites and Python serverless handlers under `/api`. |
-| **Netlify** | [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/username/orange-test) | Uses `netlify.toml` redirects and Python Netlify Functions in `netlify/functions`. |
+| **Vercel** | [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FJeeva-zone%2Fgoogle-ai-scan-domain&project-name=orange-test&repository-name=orange-test&env=RATE_LIMIT_SECONDS,MAX_CANDIDATES,DNS_CONCURRENCY,REQUEST_TIMEOUT,MAX_RESULTS,CF_CACHE_TTL_SECONDS) | Uses `vercel.json` rewrites and Python serverless handlers under `/api`. |
+| **Netlify** | [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/Jeeva-zone/google-ai-scan-domain) | Uses `netlify.toml` redirects and Python Netlify Functions in `netlify/functions`. |
 
-*(Note: Replace `username/orange-test` in the deploy link with your actual GitHub repository slug.)*
+*(Deploy links above already point at `Jeeva-zone/google-ai-scan-domain` — no edits needed.)*
 
 ---
 
@@ -26,11 +26,13 @@ Deploy your own production-ready instance in seconds to **Vercel** or **Netlify*
 - [Overview & Architecture](#-overview--architecture)
 - [Web UI Usage Manual](#-web-ui-usage-manual)
 - [Variable Settings & Tuning](#-variable-settings--tuning)
+- [Customizing Sample Domains](#-customizing-sample-domains)
 - [REST API Reference](#-rest-api-reference)
 - [Python CLI & Module Usage](#-python-cli--module-usage)
 - [Configuration & Environment Variables](#-configuration--environment-variables)
 - [Local Development Setup](#-local-development-setup)
 - [Vercel & Netlify Deployment Guide](#-vercel--netlify-deployment-guide)
+- [Freebuff Cloud Deployment](#-freebuff-cloud-deployment)
 - [Docker & Container Deployment](#-docker--container-deployment)
 - [Troubleshooting & FAQs](#-troubleshooting--faqs)
 - [Responsible Use & Security Disclaimer](#-responsible-use--security-disclaimer)
@@ -55,7 +57,7 @@ Deploy your own production-ready instance in seconds to **Vercel** or **Netlify*
 ```
 
 ### Core Architecture
-1. **Frontend Dashboard**: React 18 with TypeScript, Tailwind CSS, Lucide icons, and modern high-contrast dark theme.
+1. **Frontend Dashboard**: React 19 with TypeScript, Tailwind CSS, Lucide icons, and modern high-contrast dark theme.
 2. **Backend Engine**: Python 3.10+ concurrent worker pool (`concurrent.futures.ThreadPoolExecutor`) resolving IPv4 (A) and IPv6 (AAAA) records.
 3. **Passive Discovery**: Queries public Certificate Transparency logs (`crt.sh`) without sending active packets to origin target infrastructure.
 4. **Cloudflare IP Range Verification**: Dynamically fetches and in-memory caches official Cloudflare CIDR network blocks from `https://www.cloudflare.com/ips-v4` and `ips-v6`. Matches IPs using standard binary `ipaddress.ip_network` containment checks.
@@ -122,6 +124,33 @@ You can tune scanning parameters on the fly via the in-app **Variable Settings**
 - **Fast Scan**: 250 candidates • 40 threads • 15s timeout • 0s cooldown *(ideal for quick checks)*
 - **Deep Scan**: 3,000 candidates • 35 threads • 60s timeout • 0s cooldown *(ideal for large organizations)*
 - **Strict 60s**: Enables a 60-second cooldown between consecutive scans per IP
+
+---
+
+## 🟠 Customizing Sample Domains
+
+The quick-start **example chips** under the search bar are driven entirely by one text file — no code changes required:
+
+**`sample-domains.txt`** (repository root):
+```text
+# Orange Test — sample domains
+# One domain per line. Lines starting with # and blank lines are ignored.
+speedtest.net
+cloudflare.com
+opensignal.com
+useinsider.com
+codecademy.com
+```
+
+**To add a domain:** append a new line (inline `# comments` are also fine) and commit — the chips update on the next page load.
+
+**Rules:**
+- One domain per line, `#` starts a comment
+- Duplicates are ignored automatically
+- The list is served by `GET /api/sample-domains` and cached with `no-store`, so edits are picked up immediately
+- If the file is missing or empty in a deployment, a built-in default list is used
+
+In local dev you can simply edit the file — the running server reads it fresh on every request, so changes show up without a restart.
 
 ---
 
@@ -294,16 +323,16 @@ else:
 
 ### 1. Clone Repository
 ```bash
-git clone https://github.com/username/orange-test.git
-cd orange-test
+git clone https://github.com/Jeeva-zone/google-ai-scan-domain.git
+cd google-ai-scan-domain
 ```
 
 ### 2. Install Dependencies
 ```bash
-# Install Node dependencies
-npm install
+# Install Node dependencies (bun recommended; npm works too)
+bun install
 
-# Install Python requirements
+# Install Python requirements (test tooling only — the scanner uses the stdlib)
 pip install -r requirements.txt
 ```
 
@@ -353,6 +382,23 @@ Orange Test is built with native out-of-the-box support for both **Vercel** and 
    - **Publish directory**: `dist`
    - **Functions directory**: `netlify/functions`
 5. Click **Deploy site**. Netlify will host the frontend and execute the serverless Python functions under `/.netlify/functions/`.
+
+---
+
+## ☁️ Freebuff Cloud Deployment
+
+This repository is **Freebuff-ready** — no configuration file needed; the detected commands are saved via `freebuff-preview`:
+
+| Stage | Command |
+| :--- | :--- |
+| **Install** | `bun install` |
+| **Build** | `vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs` |
+| **Preview (dev)** | `bun run dev` on port 3000 |
+
+- The build produces **static frontend output in `dist/`** plus `dist/server.cjs`, and exits — it never starts a server itself.
+- The production server (`server.ts`) serves `dist/`, runs the Python scanner via `python3 -m backend.scanner`, and binds to `0.0.0.0:$PORT` (the injected `PORT` is respected automatically).
+- `requirements.txt` is installed by the hosting runtime so `python3` and the scanner package are available in production.
+- Environment variables (`RATE_LIMIT_SECONDS`, `MAX_CANDIDATES`, etc.) can be set as production env vars — no `.env` file is required.
 
 ---
 
@@ -409,6 +455,9 @@ docker run -p 3000:3000 -e RATE_LIMIT_SECONDS=0 orange-test:latest
 
 ### Can I run scans without any rate limit?
 - Yes! In **Variable Settings**, set `RATE_LIMIT_SECONDS` to `0`. There will be zero cooldown between scans.
+
+### How do I change the example domains shown in the UI?
+- Edit **`sample-domains.txt`** in the repository root — one domain per line — and commit. The chips refresh automatically; see [Customizing Sample Domains](#-customizing-sample-domains).
 
 ---
 
