@@ -410,21 +410,61 @@ Orange Test is built with native out-of-the-box support for both **Vercel** and 
 
 ---
 
-## ☁️ Freebuff Cloud Deployment
+## ☁️ Freebuff Cloud — Build & Hosting
 
-This repository is **Freebuff-ready** — no configuration file needed; the detected commands are saved via `freebuff-preview`:
+Both the development workspace **and** the live website run on **[Freebuff Cloud](https://freebuff.com)**.
+The code lives in this GitHub repository; Freebuff installs, builds and serves it.
 
-| Stage | Command |
+- **Live site:** <https://orangecloud.freebuff.app>
+- **Deploy mode:** Freebuff static hosting (`static_vite`) — the build writes static files into `dist/`, which Freebuff serves from its edge.
+- **No extra configuration file** — commands are stored in the Freebuff project settings via `freebuff-preview`, so a fresh clone is deployable as-is.
+
+### Configured commands
+
+| Stage | Command | Notes |
+| :--- | :--- | :--- |
+| **Install** | `npm install` | The hosting builder is a Node.js-only image, so `npm` is always available |
+| **Build** | `npm run build` | Runs `vite build` and bundles `server.ts` → `dist/server.cjs`, then exits (never starts a server) |
+| **Preview (dev)** | `bun run dev` | Local dev server on port 3000 (`npm run dev` works too); binds `0.0.0.0` and respects the injected `PORT` |
+
+> **Why `npm run build` and not `vite build`?** Calling `vite` directly fails on the hosting builder with
+> `vite: command not found`, because that build shell does not put `node_modules/.bin` on `PATH`.
+> Running the build through the package manager resolves the binaries correctly.
+
+### Deployment workflow
+
+| Task | Command / action |
 | :--- | :--- |
-| **Install** | `bun install` |
-| **Build** | `vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs` |
-| **Preview (dev)** | `bun run dev` on port 3000 |
+| **First deploy** | Press **Deploy** in the Freebuff workspace |
+| **Redeploy** | `freebuff-deploy start` (or the Deploy button) |
+| **Pre-flight check** | `freebuff-deploy check` — prints the exact commands hosting will run, without spending a build |
+| **Inspect a deploy** | `freebuff-deploy status` (state, framework, build time) · `freebuff-deploy logs` (build errors) |
 
-- The build produces **static frontend output in `dist/`** plus `dist/server.cjs`, and exits — it never starts a server itself.
-- **Static hosting means the browser engine is active automatically:** Freebuff serves `dist/` only, so `/api/*` is unavailable and the app falls back to in-browser scanning (crt.sh + DNS-over-HTTPS + the bundled Cloudflare CIDR snapshot). Standalone scans need no backend at all.
-- The production server (`server.ts`) serves `dist/`, runs the Python scanner via `python3 -m backend.scanner`, and binds to `0.0.0.0:$PORT` (the injected `PORT` is respected automatically).
-- `requirements.txt` is installed by the hosting runtime so `python3` and the scanner package are available in production.
-- Environment variables (`RATE_LIMIT_SECONDS`, `MAX_CANDIDATES`, etc.) can be set as production env vars — no `.env` file is required.
+### Production environment variables
+
+Production variables are managed separately from the workspace `.env` files (which hold development values):
+
+```bash
+freebuff-deploy env list                                # show configured keys
+freebuff-deploy env set '{"RATE_LIMIT_SECONDS":"60"}'   # applied on the next deploy
+freebuff-deploy env unset RATE_LIMIT_SECONDS
+```
+
+| Variable | Purpose | Default |
+| :--- | :--- | :--- |
+| `MAX_CANDIDATES` | Candidate cap parsed from crt.sh | `1000` |
+| `DNS_CONCURRENCY` | Parallel DNS lookups | `25` |
+| `REQUEST_TIMEOUT` | Outbound HTTP timeout (seconds) | `30` |
+| `MAX_RESULTS` | Maximum returned records | `500` |
+| `RATE_LIMIT_SECONDS` | Per-IP scan cooldown (`0` = disabled) | `0` |
+| `CF_CACHE_TTL_SECONDS` | Cloudflare CIDR cache TTL (seconds) | `3600` |
+
+### What this means for this project
+
+- **Static hosting activates the browser engine automatically.** Freebuff serves `dist/` only, so `/api/*` is unavailable; the app detects that and runs scans in the visitor's browser (crt.sh + DNS-over-HTTPS + the bundled Cloudflare CIDR snapshot). No backend required.
+- Running the app yourself (`npm run dev`, Docker, Vercel/Netlify) uses the **server engine** instead, which adds live CIDR fetching, Python-side concurrency and rate limiting.
+- The Node server (`server.ts`) serves `dist/`, shells out to the Python scanner (`python3 -m backend.scanner`) and binds to `0.0.0.0:$PORT` (the injected port is respected automatically).
+- `requirements.txt` is installed by the hosting runtime, so the Python endpoints work wherever a Python runtime is available.
 
 ---
 
