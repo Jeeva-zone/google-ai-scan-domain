@@ -6,6 +6,10 @@
 > **Passive subdomain discovery & Cloudflare IP classification engine.**  
 > Effortlessly uncover public subdomains from Certificate Transparency logs and identify which ones are actively fronted by Cloudflare proxy network ranges.
 
+> **☁️ Built, hosted & served on [Freebuff Cloud](https://freebuff.com)** — the development
+> workspace, the build pipeline and the [live website](https://orangecloud.freebuff.app) all run on
+> Freebuff. See [Freebuff Cloud — Build & Hosting](#%EF%B8%8F-freebuff-cloud--build--hosting).
+
 ---
 
 ## 🚀 One-Click Deployment
@@ -33,7 +37,7 @@ Deploy your own production-ready instance in seconds to **Vercel** or **Netlify*
 - [Configuration & Environment Variables](#-configuration--environment-variables)
 - [Local Development Setup](#-local-development-setup)
 - [Vercel & Netlify Deployment Guide](#-vercel--netlify-deployment-guide)
-- [Freebuff Cloud Deployment](#-freebuff-cloud-deployment)
+- [Freebuff Cloud — Build & Hosting](#%EF%B8%8F-freebuff-cloud--build--hosting)
 - [Docker & Container Deployment](#-docker--container-deployment)
 - [Troubleshooting & FAQs](#-troubleshooting--faqs)
 - [Responsible Use & Security Disclaimer](#-responsible-use--security-disclaimer)
