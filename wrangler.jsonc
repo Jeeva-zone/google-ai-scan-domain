@@ -1,0 +1,24 @@
+{
+  // Cloudflare Workers static assets deployment for Orange Test.
+  //
+  // This file is what makes the "Deploy to Cloudflare" button work: Cloudflare
+  // reads it to learn the project name and which directory to upload.
+  //
+  // Docs: https://developers.cloudflare.com/workers/static-assets/
+  "$schema": "node_modules/wrangler/config-schema.json",
+
+  // Rename this to whatever you like; it becomes <name>.<your-subdomain>.workers.dev
+  "name": "orange-test",
+
+  // Assets-only Worker: there is no `main` entrypoint, so Cloudflare serves
+  // the static bundle directly from its edge (no compute, no cold starts).
+  "compatibility_date": "2026-09-19",
+
+  "assets": {
+    // Output of `npm run build` (Vite)
+    "directory": "./dist",
+    // Single-page app: unknown paths render index.html instead of 404ing.
+    // This is also what the app's own /api/health probe expects on a static host.
+    "not_found_handling": "single-page-application"
+  }
+}

@@ -13,3 +13,7 @@ __pycache__/
 
 # Deploy pipeline build artifacts
 isolate/
+
+# Cloudflare Workers / Wrangler local state
+.wrangler/
+.dev.vars
