@@ -1,0 +1,33 @@
+# Cloudflare Workers static assets — response headers
+# https://developers.cloudflare.com/workers/static-assets/headers/
+#
+# Vite copies this file from public/ into dist/ during the build; Cloudflare
+# parses it and applies the rules instead of serving it as a file.
+
+# --- Security hardening for every response --------------------------------
+# Deliberately no Content-Security-Policy: the app fetches https://crt.sh and
+# https://cloudflare-dns.com from the browser and downloads a CSV via a blob:
+# URL, so a policy would have to be at least
+#   connect-src 'self' https://crt.sh https://cloudflare-dns.com; img-src 'self' data: blob:
+# Only add one if you intend to maintain it.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: geolocation=(), microphone=(), camera=()
+
+# --- Build assets are content-hashed, so they never change ----------------
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# --- Bundled Cloudflare CIDR snapshot ------------------------------------
+# Short TTL: when you refresh public/cloudflare-ranges.txt and redeploy,
+# visitors pick up the new list within the hour.
+/cloudflare-ranges.txt
+  Cache-Control: public, max-age=3600
+
+# --- Anything API-shaped must never be cached ----------------------------
+# On a static host these paths are served as index.html by the SPA fallback,
+# which must not be mistaken for a real API response.
+/api/*
+  Cache-Control: no-store

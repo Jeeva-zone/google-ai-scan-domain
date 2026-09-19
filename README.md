@@ -2,6 +2,7 @@
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fusername%2Forange-test&project-name=orange-test&repository-name=orange-test&env=RATE_LIMIT_SECONDS,MAX_CANDIDATES,DNS_CONCURRENCY,REQUEST_TIMEOUT,MAX_RESULTS,CF_CACHE_TTL_SECONDS)
 [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/username/orange-test)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Jeeva-zone/google-ai-scan-domain)
 
 > **Passive subdomain discovery & Cloudflare IP classification engine.**  
 > Effortlessly uncover public subdomains from Certificate Transparency logs and identify which ones are actively fronted by Cloudflare proxy network ranges.
@@ -19,14 +20,15 @@
 
 ## 🚀 One-Click Deployment
 
-Deploy your own production-ready instance in seconds to **Vercel** or **Netlify**:
+Deploy your own production-ready instance in seconds to **Vercel**, **Netlify** or **Cloudflare Workers**:
 
 | Platform | One-Click Deploy Button | Configuration Notes |
 | :--- | :--- | :--- |
 | **Vercel** | [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fusername%2Forange-test&project-name=orange-test&repository-name=orange-test&env=RATE_LIMIT_SECONDS,MAX_CANDIDATES,DNS_CONCURRENCY,REQUEST_TIMEOUT,MAX_RESULTS,CF_CACHE_TTL_SECONDS) | Uses `vercel.json` rewrites and Python serverless handlers under `/api`. |
 | **Netlify** | [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/username/orange-test) | Uses `netlify.toml` redirects and Python Netlify Functions in `netlify/functions`. |
+| **Cloudflare Workers** | [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Jeeva-zone/google-ai-scan-domain) | Uses `wrangler.jsonc` (assets-only Worker serving `dist/`) and `public/_headers`. Static hosting — see the warning below before choosing this option. |
 
-*(Note: Replace `username/orange-test` in the deploy link with your actual GitHub repository slug.)*
+*(Note: Replace `username/orange-test` in the Vercel/Netlify links with your actual GitHub repository slug — the Cloudflare button already points at `Jeeva-zone/google-ai-scan-domain`.)*
 
 ---
 
@@ -41,6 +43,7 @@ Deploy your own production-ready instance in seconds to **Vercel** or **Netlify*
 - [Configuration & Environment Variables](#-configuration--environment-variables)
 - [Local Development Setup](#-local-development-setup)
 - [Vercel & Netlify Deployment Guide](#-vercel--netlify-deployment-guide)
+- [Cloudflare Workers One-Click Deploy](#-cloudflare-workers-one-click-deploy)
 - [Freebuff Cloud — Build & Hosting](#%EF%B8%8F-freebuff-cloud--build--hosting)
 - [Docker & Container Deployment](#-docker--container-deployment)
 - [Troubleshooting & FAQs](#-troubleshooting--faqs)
@@ -386,6 +389,66 @@ Orange Test is built with native out-of-the-box support for both **Vercel** and 
    - **Publish directory**: `dist`
    - **Functions directory**: `netlify/functions`
 5. Click **Deploy site**. Netlify will host the frontend and execute the serverless Python functions under `/.netlify/functions/`.
+
+---
+
+## 🟠 Cloudflare Workers One-Click Deploy
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Jeeva-zone/google-ai-scan-domain)
+
+Deploy the static bundle to Cloudflare's global edge in a few clicks — no secrets and no bindings
+to provision, and it stays on the free plan.
+
+| Property | Value |
+| :--- | :--- |
+| Config file | [`wrangler.jsonc`](wrangler.jsonc) — **assets-only** Worker (no `main` entrypoint) |
+| Build command | `npm run build` (Vite → `dist/`) |
+| Deploy command | `npm run deploy` (`npx wrangler deploy`) |
+| Uploaded directory | `./dist` |
+| SPA routing | `not_found_handling: "single-page-application"` |
+| Response headers | [`public/_headers`](public/_headers) |
+
+### How to deploy
+
+1. Click the button above — Cloudflare clones the repository into your own GitHub account.
+2. On the setup page, accept the auto-detected commands (build `npm run build`, deploy `npx wrangler deploy`) and optionally rename the Worker.
+3. Press **Deploy**. Your copy goes live at `https://<name>.<your-subdomain>.workers.dev`.
+
+### Verify locally before you deploy
+
+```bash
+npm run build
+npx wrangler deploy --dry-run   # validates wrangler.jsonc and lists the assets that would upload
+npx wrangler dev                # serves the built bundle through Wrangler locally
+```
+
+`--dry-run` needs no Cloudflare login and no API token — it is a pure local check.
+
+### ⚠️ Read this first: Cloudflare hosting on this snapshot is static only
+
+Cloudflare serves `dist/` from its edge. It does **not** run the Node server (`server.ts`) or the
+Python handlers in `api/`, so `POST /api/scan`, `GET /api/health` and friends are unavailable —
+the SPA fallback answers them with `index.html`, and a direct POST is rejected with `405`.
+
+This snapshot branch has **no in-browser scan fallback** (that engine was added later on `main`
+and `client-version`). So a Cloudflare deployment of this branch loads the full UI but cannot
+actually run a scan. Choose accordingly:
+
+| If you want… | Use |
+| :--- | :--- |
+| Working scans with this snapshot's code | **Vercel** or **Netlify** (they execute the Python handlers) — see the section above |
+| A working static deploy on Cloudflare's edge | The updated **`main`** / **`client-version`** code, which scans in the visitor's browser and works perfectly here |
+
+### Prefer Cloudflare Pages?
+
+The Deploy to Cloudflare button supports **Workers** only, but Pages works just as well — connect the
+repository in the dashboard under **Workers & Pages → Create → Pages → Connect to Git** with:
+
+- **Build command:** `npm run build`
+- **Build output directory:** `dist`
+
+The same static-only limitation applies. `public/_headers` is honoured by Pages too; unlike Workers,
+Pages does not read `wrangler.jsonc`.
 
 ---
 

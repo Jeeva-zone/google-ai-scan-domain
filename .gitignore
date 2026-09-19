@@ -6,3 +6,7 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Cloudflare Workers / Wrangler local state
+.wrangler/
+.dev.vars
