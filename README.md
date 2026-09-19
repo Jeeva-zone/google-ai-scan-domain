@@ -35,6 +35,7 @@ Deploy your own production-ready instance in seconds to **Vercel** or **Netlify*
 - [Overview & Architecture](#-overview--architecture)
 - [Web UI Usage Manual](#-web-ui-usage-manual)
 - [Variable Settings & Tuning](#-variable-settings--tuning)
+- [Customizing Sample Domains](#-customizing-sample-domains)
 - [REST API Reference](#-rest-api-reference)
 - [Python CLI & Module Usage](#-python-cli--module-usage)
 - [Configuration & Environment Variables](#-configuration--environment-variables)
@@ -125,6 +126,50 @@ You can tune scanning parameters on the fly via the in-app **Variable Settings**
 - **Fast Scan**: 250 candidates • 40 threads • 15s timeout • 0s cooldown *(ideal for quick checks)*
 - **Deep Scan**: 3,000 candidates • 35 threads • 60s timeout • 0s cooldown *(ideal for large organizations)*
 - **Strict 60s**: Enables a 60-second cooldown between consecutive scans per IP
+
+---
+
+## 🟠 Customizing Sample Domains
+
+The quick-start chips next to **Examples:** under the search bar are the domains a visitor can click to try the tool.
+
+### On this snapshot branch
+
+The list is **hardcoded** in one line — edit it and rebuild:
+
+```tsx
+// src/components/DomainForm.tsx
+{["speedtest.net", "cloudflare.com", "opensignal.com", "useinsider.com", "codecademy.com"].map((ex) => (
+```
+
+### The file-driven workflow (`sample-domains.txt`)
+
+The updated code on **`main`** and **`client-version`** replaces that hardcoded array with a plain
+text file in the repository root, so adding a domain needs **no code changes**:
+
+**`sample-domains.txt`** (repository root):
+```text
+# Orange Test — sample domains
+# One domain per line. Lines starting with # and blank lines are ignored.
+speedtest.net
+cloudflare.com
+opensignal.com
+useinsider.com
+codecademy.com
+```
+
+**To add a domain:** append a new line and commit — the chips update on the next page load.
+
+**Rules:**
+- One domain per line, `#` starts a comment
+- Duplicates are ignored automatically
+- Served by `GET /api/sample-domains` with `no-store`, so edits are picked up immediately in local dev
+- If the file is missing or empty (or the API is unreachable), the UI keeps its built-in default chips (`speedtest.net`, `cloudflare.com`, `opensignal.com`)
+- On the static Freebuff deployment the file is bundled into the JS at build time, so commit **and** redeploy for chips to change
+
+> **Which branch should I use?** For the file-driven workflow use **`main`** (or `client-version`,
+> which also runs the scan in the browser). This `old-backup` branch is kept as a snapshot of the
+> earlier code — documentation is the only thing added to it.
 
 ---
 
@@ -455,6 +500,12 @@ docker run -p 3000:3000 -e RATE_LIMIT_SECONDS=0 orange-test:latest
 
 ### Can I run scans without any rate limit?
 - Yes! In **Variable Settings**, set `RATE_LIMIT_SECONDS` to `0`. There will be zero cooldown between scans.
+
+### How do I change the example domains shown in the UI?
+- On the updated code (`main` / `client-version`) the chips are driven by **`sample-domains.txt`** in the repository root: add one domain per line, commit, and they appear on the next page load — no code changes. They come from `GET /api/sample-domains`, with the file also bundled into the build so the chips still work when no API exists. See [Customizing Sample Domains](#-customizing-sample-domains). On this `old-backup` snapshot the same list is hardcoded in `src/components/DomainForm.tsx`.
+
+### Where is the sample domain list stored?
+- In the repository root as `sample-domains.txt` (updated branches), served through `GET /api/sample-domains`; in the static deployment the file is bundled into the build. On this snapshot branch the list is compiled into `src/components/DomainForm.tsx`.
 
 ---
 
