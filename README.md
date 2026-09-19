@@ -24,6 +24,7 @@ Deploy your own production-ready instance in seconds to **Vercel** or **Netlify*
 ## 📋 Table of Contents
 
 - [Overview & Architecture](#-overview--architecture)
+- [Scan Engines](#-scan-engines)
 - [Web UI Usage Manual](#-web-ui-usage-manual)
 - [Variable Settings & Tuning](#-variable-settings--tuning)
 - [Customizing Sample Domains](#-customizing-sample-domains)
@@ -62,6 +63,28 @@ Deploy your own production-ready instance in seconds to **Vercel** or **Netlify*
 3. **Passive Discovery**: Queries public Certificate Transparency logs (`crt.sh`) without sending active packets to origin target infrastructure.
 4. **Cloudflare IP Range Verification**: Dynamically fetches and in-memory caches official Cloudflare CIDR network blocks from `https://www.cloudflare.com/ips-v4` and `ips-v6`. Matches IPs using standard binary `ipaddress.ip_network` containment checks.
 5. **Strict Positive Matching**: Only hostnames resolving to verified Cloudflare IP blocks are displayed with an orange indicator (`🟠`). Unresolved or non-Cloudflare hostnames are filtered out.
+
+---
+
+## 🧠 Scan Engines
+
+Orange Test ships **two interchangeable scan engines**. The app probes `/api/health` on load and automatically picks the one it can use — no configuration needed:
+
+| | Server engine | Browser engine |
+| :--- | :--- | :--- |
+| **Used when** | A backend is available (local dev, Node/Vercel/Netlify deployment) | The app is served as a static site (e.g. Freebuff static hosting) |
+| **Discovery** | `crt.sh` via Python (`urllib`) | `crt.sh` fetched directly from the browser (CORS-enabled) |
+| **DNS resolution** | Python `socket.getaddrinfo` thread pool | DNS-over-HTTPS (`cloudflare-dns.com/dns-query`, A + AAAA) |
+| **Cloudflare ranges** | Fetched live from Cloudflare on every cache miss | Bundled snapshot at `public/cloudflare-ranges.txt` |
+| **Settings** | Server env / `.env` via `POST /api/config` | `localStorage`, applied to in-browser scans |
+| **Rate limiting** | Yes (`RATE_LIMIT_SECONDS`) | Not applicable — nothing to protect server-side |
+
+**How the switch works:** the app requests `POST /api/scan`. Static hosts answer unknown routes with the SPA HTML (or reject POSTs with `405`), which the app detects and transparently re-runs the scan in-browser. The active engine is shown in the header (`Engine: Browser (CT + DoH)` / `Engine: Server (CT + CIDR)`).
+
+**Browser engine notes:**
+- The CIDR matcher in `src/lib/cidr.ts` is cross-validated against Python's `ipaddress` module, so both engines classify IPs identically (IPv4, IPv6, and boundary cases).
+- The Cloudflare CIDR snapshot is bundled at build time. Cloudflare changes these ranges rarely — refresh `public/cloudflare-ranges.txt` from `https://www.cloudflare.com/ips-v4` and `ips-v6` when they do, then rebuild.
+- Because discovery/resolution happen in the visitor's browser, the scan adds no server load and needs no API keys.
 
 ---
 
@@ -108,6 +131,8 @@ To abort a scan at any point, click the red **Cancel** button.
 You can tune scanning parameters on the fly via the in-app **Variable Settings** modal:
 1. Click **Variable Settings** in the top navigation or the **Tune Variables** link below the search bar.
 2. Adjust any parameter and click **Save Variables**. Changes take effect immediately and are saved to `.env`.
+
+With the **browser engine** (static deployments) the same modal stores limits in the browser's `localStorage` instead — `MAX_CANDIDATES`, `DNS_CONCURRENCY`, `REQUEST_TIMEOUT` and `MAX_RESULTS` are applied to in-browser scans, while server-only settings (rate limit, CIDR cache) don't apply.
 
 ### Configurable Parameters
 | Variable | Description | Recommended Default | Safe Range |
@@ -396,6 +421,7 @@ This repository is **Freebuff-ready** — no configuration file needed; the dete
 | **Preview (dev)** | `bun run dev` on port 3000 |
 
 - The build produces **static frontend output in `dist/`** plus `dist/server.cjs`, and exits — it never starts a server itself.
+- **Static hosting means the browser engine is active automatically:** Freebuff serves `dist/` only, so `/api/*` is unavailable and the app falls back to in-browser scanning (crt.sh + DNS-over-HTTPS + the bundled Cloudflare CIDR snapshot). Standalone scans need no backend at all.
 - The production server (`server.ts`) serves `dist/`, runs the Python scanner via `python3 -m backend.scanner`, and binds to `0.0.0.0:$PORT` (the injected `PORT` is respected automatically).
 - `requirements.txt` is installed by the hosting runtime so `python3` and the scanner package are available in production.
 - Environment variables (`RATE_LIMIT_SECONDS`, `MAX_CANDIDATES`, etc.) can be set as production env vars — no `.env` file is required.

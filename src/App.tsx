@@ -6,8 +6,72 @@ import { ResultsTable } from "./components/ResultsTable";
 import { EmptyState } from "./components/EmptyState";
 import { HelpPanel } from "./components/HelpPanel";
 import { SettingsModal } from "./components/SettingsModal";
-import { ScanResultItem, ScanStage, ScanResponse } from "./types";
+import {
+  ScanResultItem,
+  ScanStage,
+  ScanResponse,
+  ScanSuccessResponse,
+} from "./types";
+import { ClientScanError, runClientScan } from "./lib/clientScanner";
 import { Search, HelpCircle, Download, Radio, Sliders } from "lucide-react";
+
+type ScanEngine = "server" | "browser";
+
+type ServerScanOutcome =
+  | { kind: "success"; data: ScanSuccessResponse }
+  | { kind: "api-error"; message: string }
+  | { kind: "unavailable" };
+
+/**
+ * Attempts a scan against the server API.
+ *
+ * Returns `unavailable` when the app is served statically (no backend):
+ * static hosts answer unknown routes with the SPA HTML, or reject POSTs with
+ * 405, so the caller can fall back to the in-browser engine.
+ */
+async function tryServerScan(
+  domain: string,
+  signal: AbortSignal
+): Promise<ServerScanOutcome> {
+  let response: Response;
+  try {
+    response = await fetch("/api/scan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ domain }),
+      signal,
+    });
+  } catch (err) {
+    if (signal.aborted) throw err;
+    return { kind: "unavailable" };
+  }
+
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) return { kind: "unavailable" };
+
+  let data: ScanResponse;
+  try {
+    data = (await response.json()) as ScanResponse;
+  } catch {
+    return { kind: "unavailable" };
+  }
+
+  if (response.ok && data.success) {
+    return { kind: "success", data: data as ScanSuccessResponse };
+  }
+
+  if (data && data.success === false && data.error) {
+    const fallback =
+      response.status === 429
+        ? "Rate limit exceeded. Please wait a minute before scanning again."
+        : response.status === 502 || response.status === 503
+        ? "Subdomain discovery is temporarily unavailable. Please try again later."
+        : "Please enter a valid domain, for example: speedtest.net";
+    return { kind: "api-error", message: data.error.message || fallback };
+  }
+
+  return { kind: "unavailable" };
+}
 
 export default function App() {
   const [currentDomain, setCurrentDomain] = useState<string>("");
@@ -22,6 +86,8 @@ export default function App() {
   const [hasScanned, setHasScanned] = useState<boolean>(false);
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  // Which engine performed the scan: the server API or the in-browser engine
+  const [scanEngine, setScanEngine] = useState<ScanEngine | null>(null);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const stageTimerRef = useRef<NodeJS.Timeout[]>([]);
@@ -52,6 +118,46 @@ export default function App() {
       clearStageTimers();
     };
   }, []);
+
+  // Probe the API once so the UI can label which engine is active. A static
+  // deployment answers /api/health with the SPA HTML instead of JSON.
+  useEffect(() => {
+    let isMounted = true;
+    fetch("/api/health", { headers: { accept: "application/json" } })
+      .then(async (res) => {
+        if (!res.ok) return null;
+        const type = res.headers.get("content-type") || "";
+        return type.includes("application/json") ? res.json() : null;
+      })
+      .then((data) => {
+        if (!isMounted) return;
+        setScanEngine((current) => current ?? (data?.status === "ok" ? "server" : "browser"));
+      })
+      .catch(() => {
+        if (isMounted) setScanEngine((current) => current ?? "browser");
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const applyScanSuccess = (
+    data: ScanSuccessResponse,
+    controller: AbortController,
+    generation: number
+  ) => {
+    updateStage("formatting");
+    // Track the formatting delay so Cancel/Restart can reliably clear it
+    const t4 = setTimeout(() => {
+      if (controller.signal.aborted || generation !== scanGenerationRef.current) return;
+      setResults(data.results || []);
+      setDurationMs(data.duration_ms || 0);
+      setDiscoverySource(data.discovery_source || "crt.sh");
+      setNote(data.note || "");
+      updateStage("complete");
+    }, 300);
+    stageTimerRef.current = [...stageTimerRef.current, t4];
+  };
 
   const handleStartScan = async (domain: string) => {
     // Reset previous scan state
@@ -89,61 +195,58 @@ export default function App() {
     stageTimerRef.current = [t1, t2, t3];
 
     try {
-      const response = await fetch("/api/scan", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ domain }),
-        signal: controller.signal,
-      });
+      const outcome = await tryServerScan(domain, controller.signal);
 
-      clearStageTimers();
+      // A newer scan/clear superseded this one — drop the result.
+      if (generation !== scanGenerationRef.current) return;
 
-      let data: ScanResponse;
-      try {
-        data = await response.json();
-      } catch {
-        throw new Error("Unable to parse server response.");
+      if (outcome.kind === "success") {
+        setScanEngine("server");
+        clearStageTimers();
+        applyScanSuccess(outcome.data, controller, generation);
+        return;
       }
 
-      if (response.ok && data.success) {
-        updateStage("formatting");
-        // Track the formatting delay so Cancel/Restart can reliably clear it
-        const t4 = setTimeout(() => {
-          if (controller.signal.aborted || generation !== scanGenerationRef.current) return;
-          setResults(data.results || []);
-          setDurationMs(data.duration_ms || 0);
-          setDiscoverySource(data.discovery_source || "crt.sh");
-          setNote(data.note || "");
-          updateStage("complete");
-        }, 300);
-        stageTimerRef.current = [...stageTimerRef.current, t4];
-      } else {
-        const errorData = data as any;
-        const msg =
-          errorData?.error?.message ||
-          (response.status === 429
-            ? "Rate limit exceeded. Please wait a minute before scanning again."
-            : response.status === 502 || response.status === 503
-            ? "Subdomain discovery is temporarily unavailable. Please try again later."
-            : "Please enter a valid domain, for example: speedtest.net");
-
-        setErrorMessage(msg);
+      if (outcome.kind === "api-error") {
+        setScanEngine("server");
+        clearStageTimers();
+        setErrorMessage(outcome.message);
         setFailedStage(stageRef.current);
         updateStage("error");
+        return;
+      }
+
+      // No backend reachable (static deployment) — scan from the browser.
+      setScanEngine("browser");
+      clearStageTimers();
+      const data = await runClientScan({
+        domain,
+        signal: controller.signal,
+        onStage: (next) => {
+          if (generation === scanGenerationRef.current && !controller.signal.aborted) {
+            updateStage(next);
+          }
+        },
+      });
+
+      if (generation === scanGenerationRef.current) {
+        applyScanSuccess(data, controller, generation);
       }
     } catch (err: any) {
       clearStageTimers();
+      if (generation !== scanGenerationRef.current) return;
+
       if (err?.name === "AbortError") {
         // Only surface "canceled" if this scan is still the active one;
         // a cleared/restarted scan resets to "ready" instead.
-        if (generation === scanGenerationRef.current) {
-          updateStage("canceled");
-        }
+        updateStage("canceled");
+      } else if (err instanceof ClientScanError && err.code === "CANCELED") {
+        updateStage("canceled");
       } else {
         setErrorMessage(
-          "Subdomain discovery is temporarily unavailable. Please try again later."
+          err instanceof ClientScanError
+            ? err.message
+            : "Subdomain discovery is temporarily unavailable. Please try again later."
         );
         setFailedStage(stageRef.current);
         updateStage("error");
@@ -290,6 +393,10 @@ export default function App() {
               <span className="text-[#aab2c0] text-[10px] uppercase tracking-tighter font-mono">
                 {stage === "complete"
                   ? `Duration: ${(durationMs / 1000).toFixed(2)}s`
+                  : scanEngine === "browser"
+                  ? "Engine: Browser (CT + DoH)"
+                  : scanEngine === "server"
+                  ? "Engine: Server (CT + CIDR)"
                   : "Engine: Passive CT & CIDR"}
               </span>
             </div>
@@ -428,6 +535,7 @@ export default function App() {
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+        browserMode={scanEngine === "browser"}
       />
     </div>
   );

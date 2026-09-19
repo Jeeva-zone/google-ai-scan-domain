@@ -10,3 +10,6 @@ coverage/
 # Python bytecode caches
 __pycache__/
 *.py[cod]
+
+# Deploy pipeline build artifacts
+isolate/

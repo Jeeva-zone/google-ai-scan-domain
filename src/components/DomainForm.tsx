@@ -1,14 +1,28 @@
 import React, { useEffect, useState } from "react";
 import { XCircle, AlertCircle, ShieldCheck, Sliders } from "lucide-react";
+import sampleDomainsRaw from "../../sample-domains.txt?raw";
 
-// Used when /api/sample-domains is unreachable; mirrors sample-domains.txt
-const FALLBACK_DOMAINS = [
-  "speedtest.net",
-  "cloudflare.com",
-  "opensignal.com",
-  "useinsider.com",
-  "codecademy.com",
-];
+/** Parses sample-domains.txt content: one domain per line, `#` comments allowed. */
+function parseSampleDomains(raw: string): string[] {
+  const domains: string[] = [];
+  const seen = new Set<string>();
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const domain = trimmed.split("#")[0].trim();
+    if (!domain || seen.has(domain)) continue;
+    seen.add(domain);
+    domains.push(domain);
+  }
+  return domains;
+}
+
+// Bundled at build time from sample-domains.txt so the chips work even on a
+// static deployment where /api/sample-domains is unavailable.
+const BUNDLED_DOMAINS = parseSampleDomains(sampleDomainsRaw);
+const FALLBACK_DOMAINS = BUNDLED_DOMAINS.length
+  ? BUNDLED_DOMAINS
+  : ["speedtest.net", "cloudflare.com", "opensignal.com"];
 
 interface DomainFormProps {
   onScan: (domain: string) => void;
