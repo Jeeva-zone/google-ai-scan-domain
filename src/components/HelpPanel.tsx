@@ -113,7 +113,8 @@ export const HelpPanel: React.FC<HelpPanelProps> = ({ isOpen, onClose }) => {
   -d '{"domain":"speedtest.net"}'`}
             </pre>
             <p className="text-[11px] text-[#6c7484]">
-              Rate-limited by default to 1 request per client IP per 60 seconds.
+              Rate limiting is disabled by default; enable it via Variable Settings
+              (<span className="font-mono">RATE_LIMIT_SECONDS</span>).
             </p>
           </div>
         </div>

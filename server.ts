@@ -1,17 +1,18 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
+import type { Server } from "http";
 import { execFile } from "child_process";
-import { createServer as createViteServer } from "vite";
 
 const app = express();
-const PORT = 3000;
+// Respect the PORT injected by the hosting environment (Freebuff/Heroku/etc.);
+// fall back to 3000 for local development.
+const PORT = parseInt(process.env.PORT || "3000", 10);
 
 app.use(express.json({ limit: "1mb" }));
 
 // In-memory rate limiting map for Node server
 const rateLimitMap = new Map<string, number>();
-const RATE_LIMIT_SECONDS = parseInt(process.env.RATE_LIMIT_SECONDS || "0", 10);
 
 // Helper to extract client IP from headers
 function getClientIp(req: express.Request): string {
@@ -205,8 +206,11 @@ app.post("/api/scan", (req, res) => {
   });
 });
 
-async function startServer() {
+async function startServer(): Promise<Server> {
   if (process.env.NODE_ENV !== "production") {
+    // Lazy-import Vite only in development so the production bundle
+    // never requires the dev server toolchain at runtime.
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -220,9 +224,17 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Orange Test server running on http://localhost:${PORT}`);
+  return new Promise((resolve, reject) => {
+    const server = app
+      .listen(PORT, "0.0.0.0", () => {
+        console.log(`Orange Test server running on http://localhost:${PORT}`);
+        resolve(server);
+      })
+      .on("error", reject);
   });
 }
 
-startServer();
+startServer().catch((err) => {
+  console.error("Failed to start Orange Test server:", err);
+  process.exit(1);
+});

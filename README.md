@@ -88,8 +88,7 @@ To abort a scan at any point, click the red **Cancel** button.
   - Click the copy button beside any hostname to copy the domain name.
   - Click any IP address pill to copy the IP directly.
 - **Exporting Data**:
-  - **Export CSV**: Downloads an RFC-compliant CSV file (`<domain>_cloudflare_subdomains.csv`) with `hostname,ip,cloudflare`.
-  - **Export JSON**: Downloads formatted JSON array suitable for programmatic ingestion.
+  - **Download CSV**: Downloads an RFC-compliant CSV file (`orange-test-<domain>.csv`) with `hostname,ip,cloudflare`.
 - **Clear Results**: Click the trash/clear icon to reset the dashboard.
 
 ---
@@ -165,9 +164,9 @@ Content-Type: application/json
     }
   ],
   "count": 2,
-  "candidates_found": 84,
+  "duration_ms": 1420,
   "discovery_source": "crt.sh",
-  "duration_ms": 1420
+  "note": "Certificate Transparency discovery may not find every subdomain."
 }
 ```
 
@@ -248,10 +247,10 @@ python3 -m backend.scanner '{"domain":"opensignal.com"}' | jq .
 
 ### Programmatic Python Usage
 ```python
-from backend.features.orange_test.service import scan_subdomains
+from backend.scanner import run_scan
 
 # Run scan
-status_code, result = scan_subdomains("speedtest.net")
+status_code, result = run_scan("speedtest.net")
 
 if result.get("success"):
     print(f"Discovered {len(result['results'])} Cloudflare subdomains:")

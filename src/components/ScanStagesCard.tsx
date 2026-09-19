@@ -5,6 +5,8 @@ import { Check, Loader2 } from "lucide-react";
 interface ScanStagesCardProps {
   stage: ScanStage;
   errorMessage?: string | null;
+  /** The in-flight stage that was active when the scan failed, if any. */
+  failedStage?: ScanStage | null;
 }
 
 interface StageStep {
@@ -28,15 +30,19 @@ const STAGE_ORDER: Record<ScanStage, number> = {
   filtering: 4,
   formatting: 5,
   complete: 6,
-  error: -1,
-  canceled: -1,
+  error: 0,
+  canceled: 0,
 };
 
 export const ScanStagesCard: React.FC<ScanStagesCardProps> = ({
   stage,
   errorMessage,
+  failedStage,
 }) => {
   const currentStepNum = STAGE_ORDER[stage] ?? 0;
+  // On failure, highlight the step that was in progress and mark prior steps done.
+  const failedStepNum =
+    stage === "error" && failedStage ? STAGE_ORDER[failedStage] ?? 0 : 0;
 
   return (
     <div className="bg-[#181b24] p-5 sm:p-6 rounded-2xl border border-white/5 shadow-xl relative overflow-hidden">
@@ -69,10 +75,13 @@ export const ScanStagesCard: React.FC<ScanStagesCardProps> = ({
       <div className="space-y-3.5">
         {STAGES.map((step, idx) => {
           const stepNum = idx + 1;
-          const isDone = currentStepNum > stepNum || stage === "complete";
-          const isActive = currentStepNum === stepNum;
-          const isFailed = stage === "error" && currentStepNum === stepNum;
-          const isPending = !isDone && !isActive;
+          const isDone =
+            stage === "complete" ||
+            stepNum < failedStepNum ||
+            (stage !== "error" && currentStepNum > stepNum);
+          const isFailed = failedStepNum === stepNum;
+          const isActive = !isDone && !isFailed && currentStepNum === stepNum;
+          const isPending = !isDone && !isActive && !isFailed;
 
           return (
             <div
@@ -85,13 +94,13 @@ export const ScanStagesCard: React.FC<ScanStagesCardProps> = ({
                 <div className="w-4 h-4 rounded-full border-2 border-[#35d07f] flex items-center justify-center p-0.5 shrink-0">
                   <div className="w-full h-full bg-[#35d07f] rounded-full" />
                 </div>
-              ) : isActive ? (
-                <div className="w-4 h-4 rounded-full border-2 border-[#ff8a00] flex items-center justify-center p-0.5 shrink-0 animate-pulse">
-                  <div className="w-full h-full bg-[#ff8a00] rounded-full" />
-                </div>
               ) : isFailed ? (
                 <div className="w-4 h-4 rounded-full border-2 border-[#ff5f56] flex items-center justify-center p-0.5 shrink-0">
                   <div className="w-full h-full bg-[#ff5f56] rounded-full" />
+                </div>
+              ) : isActive ? (
+                <div className="w-4 h-4 rounded-full border-2 border-[#ff8a00] flex items-center justify-center p-0.5 shrink-0 animate-pulse">
+                  <div className="w-full h-full bg-[#ff8a00] rounded-full" />
                 </div>
               ) : (
                 <div className="w-4 h-4 rounded-full border-2 border-white/20 shrink-0" />

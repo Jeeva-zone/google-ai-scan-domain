@@ -17,12 +17,31 @@ export default function App() {
   const [discoverySource, setDiscoverySource] = useState<string>("crt.sh");
   const [note, setNote] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // The stage that was active when the scan failed (for failure highlighting)
+  const [failedStage, setFailedStage] = useState<ScanStage | null>(null);
   const [hasScanned, setHasScanned] = useState<boolean>(false);
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const stageTimerRef = useRef<NodeJS.Timeout[]>([]);
+  // Bumped whenever a scan is cleared/canceled so stale async handlers
+  // (e.g. an AbortError from a superseded scan) can't clobber new state.
+  const scanGenerationRef = useRef<number>(0);
+  // Mirrors the current stage for async closures (state reads inside
+  // handleStartScan would be stale after awaits).
+  const stageRef = useRef<ScanStage>("ready");
+
+  const updateStage = (next: ScanStage) => {
+    stageRef.current = next;
+    setStage(next);
+  };
+
+  // Clear simulated stage animation timers
+  const clearStageTimers = () => {
+    stageTimerRef.current.forEach(clearTimeout);
+    stageTimerRef.current = [];
+  };
 
   // Cleanup abort controller and timers on unmount
   useEffect(() => {
@@ -30,15 +49,9 @@ export default function App() {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
-      stageTimerRef.current.forEach(clearTimeout);
+      clearStageTimers();
     };
   }, []);
-
-  // Clear simulated stage animation timers
-  const clearStageTimers = () => {
-    stageTimerRef.current.forEach(clearTimeout);
-    stageTimerRef.current = [];
-  };
 
   const handleStartScan = async (domain: string) => {
     // Reset previous scan state
@@ -49,26 +62,28 @@ export default function App() {
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
+    const generation = ++scanGenerationRef.current;
 
     setCurrentDomain(domain);
     setResults([]);
     setErrorMessage(null);
+    setFailedStage(null);
     setHasScanned(true);
 
     // Initial stage: validating domain
-    setStage("validating");
+    updateStage("validating");
 
     // Progression through honest stages while backend performs discovery and DNS resolution
     const t1 = setTimeout(() => {
-      if (!controller.signal.aborted) setStage("discovering");
+      if (!controller.signal.aborted) updateStage("discovering");
     }, 400);
 
     const t2 = setTimeout(() => {
-      if (!controller.signal.aborted) setStage("resolving");
+      if (!controller.signal.aborted) updateStage("resolving");
     }, 2400);
 
     const t3 = setTimeout(() => {
-      if (!controller.signal.aborted) setStage("filtering");
+      if (!controller.signal.aborted) updateStage("filtering");
     }, 4500);
 
     stageTimerRef.current = [t1, t2, t3];
@@ -93,14 +108,17 @@ export default function App() {
       }
 
       if (response.ok && data.success) {
-        setStage("formatting");
-        setTimeout(() => {
+        updateStage("formatting");
+        // Track the formatting delay so Cancel/Restart can reliably clear it
+        const t4 = setTimeout(() => {
+          if (controller.signal.aborted || generation !== scanGenerationRef.current) return;
           setResults(data.results || []);
           setDurationMs(data.duration_ms || 0);
           setDiscoverySource(data.discovery_source || "crt.sh");
           setNote(data.note || "");
-          setStage("complete");
+          updateStage("complete");
         }, 300);
+        stageTimerRef.current = [...stageTimerRef.current, t4];
       } else {
         const errorData = data as any;
         const msg =
@@ -112,17 +130,23 @@ export default function App() {
             : "Please enter a valid domain, for example: speedtest.net");
 
         setErrorMessage(msg);
-        setStage("error");
+        setFailedStage(stageRef.current);
+        updateStage("error");
       }
     } catch (err: any) {
       clearStageTimers();
       if (err?.name === "AbortError") {
-        setStage("canceled");
+        // Only surface "canceled" if this scan is still the active one;
+        // a cleared/restarted scan resets to "ready" instead.
+        if (generation === scanGenerationRef.current) {
+          updateStage("canceled");
+        }
       } else {
         setErrorMessage(
           "Subdomain discovery is temporarily unavailable. Please try again later."
         );
-        setStage("error");
+        setFailedStage(stageRef.current);
+        updateStage("error");
       }
     } finally {
       abortControllerRef.current = null;
@@ -131,15 +155,18 @@ export default function App() {
 
   const handleCancelScan = () => {
     clearStageTimers();
+    scanGenerationRef.current += 1;
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
-    setStage("canceled");
+    updateStage("canceled");
   };
 
   const handleClearResults = () => {
     clearStageTimers();
+    // Invalidate any in-flight scan callbacks before aborting
+    scanGenerationRef.current += 1;
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
@@ -147,8 +174,9 @@ export default function App() {
     setCurrentDomain("");
     setResults([]);
     setErrorMessage(null);
+    setFailedStage(null);
     setHasScanned(false);
-    setStage("ready");
+    updateStage("ready");
   };
 
   const isScanning =
@@ -256,7 +284,7 @@ export default function App() {
                     : "text-[#35d07f]"
                 }`}
               >
-                Status: {stage === "ready" ? "Complete" : stage}
+                Status: {stage === "ready" ? "Ready" : stage === "canceled" ? "Idle" : stage}
               </span>
               <span className="text-[#aab2c0]/40 font-mono text-xs">•</span>
               <span className="text-[#aab2c0] text-[10px] uppercase tracking-tighter font-mono">
@@ -379,7 +407,11 @@ export default function App() {
 
           {/* Secondary Column (Stages Card & Quick Help Card) */}
           <div className="w-full lg:w-80 flex flex-col gap-6 shrink-0">
-            <ScanStagesCard stage={stage} errorMessage={errorMessage} />
+            <ScanStagesCard
+              stage={stage}
+              errorMessage={errorMessage}
+              failedStage={failedStage}
+            />
             <QuickHelpCard
               onOpenHelp={() => setIsHelpOpen(true)}
               onClearSession={handleClearResults}

@@ -6,3 +6,7 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Python bytecode caches
+__pycache__/
+*.py[cod]
