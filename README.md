@@ -71,6 +71,14 @@ Deploy your own production-ready instance in seconds to **Vercel** or **Netlify*
    - The engine automatically strips URL prefixes (`https://`, `http://`), paths (`/blog`), and port suffixes (`:8080`).
 3. Click **Scan Subdomains** (or press <kbd>Enter</kbd>).
 4. You can also click any of the **Quick Example Chips** below the search input to populate and trigger a scan immediately.
+   - These chips are powered by **`sample-domains.txt`** in the repository root: one domain per line, `#` comments allowed. Edit that file (locally or via a commit) and the chips update automatically — no code changes required.
+5. To add more example domains, append a line to `sample-domains.txt`:
+   ```text
+   # Orange Test — sample domains
+   speedtest.net
+   cloudflare.com
+   example-target.net
+   ```
 
 ### 2. Monitoring Scan Progress
 While the scan runs, the interface displays real-time stages:
@@ -227,6 +235,21 @@ POST /api/reset-rate-limit
 {
   "success": true,
   "message": "Rate limit tracker reset."
+}
+```
+
+---
+
+### 6. Sample Domains
+```http
+GET /api/sample-domains
+```
+Reads `sample-domains.txt` from the repository root (one domain per line, `#` comments allowed) and powers the example chips in the web UI.
+**Response (`200 OK`):**
+```json
+{
+  "success": true,
+  "domains": ["speedtest.net", "cloudflare.com", "opensignal.com", "useinsider.com", "codecademy.com"]
 }
 ```
 

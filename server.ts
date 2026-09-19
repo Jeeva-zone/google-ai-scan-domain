@@ -29,6 +29,35 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
+// Sample domains served from sample-domains.txt in the repo root.
+// Edit that file (one domain per line) to change the example chips in the web UI.
+const SAMPLE_DOMAINS_PATH = path.join(process.cwd(), "sample-domains.txt");
+
+function parseSampleDomains(raw: string): string[] {
+  const seen = new Set<string>();
+  const domains: string[] = [];
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const domain = trimmed.split("#")[0].trim();
+    if (!domain || seen.has(domain)) continue;
+    seen.add(domain);
+    domains.push(domain);
+  }
+  return domains;
+}
+
+app.get("/api/sample-domains", (req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  try {
+    const raw = fs.readFileSync(SAMPLE_DOMAINS_PATH, "utf-8");
+    res.json({ success: true, domains: parseSampleDomains(raw) });
+  } catch (err) {
+    console.error("Failed to read sample-domains.txt:", err);
+    res.json({ success: true, domains: [] });
+  }
+});
+
 // Configuration variables endpoint (GET current, POST update)
 app.get("/api/config", (req, res) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");

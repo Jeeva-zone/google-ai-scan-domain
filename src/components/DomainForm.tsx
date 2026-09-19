@@ -1,5 +1,14 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { XCircle, AlertCircle, ShieldCheck, Sliders } from "lucide-react";
+
+// Used when /api/sample-domains is unreachable; mirrors sample-domains.txt
+const FALLBACK_DOMAINS = [
+  "speedtest.net",
+  "cloudflare.com",
+  "opensignal.com",
+  "useinsider.com",
+  "codecademy.com",
+];
 
 interface DomainFormProps {
   onScan: (domain: string) => void;
@@ -18,6 +27,31 @@ export const DomainForm: React.FC<DomainFormProps> = ({
 }) => {
   const [domainInput, setDomainInput] = useState<string>("speedtest.net");
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [sampleDomains, setSampleDomains] = useState<string[]>(FALLBACK_DOMAINS);
+
+  // Load sample domains from sample-domains.txt (via the API) on mount.
+  // Add or remove lines in sample-domains.txt to change these chips.
+  useEffect(() => {
+    let isMounted = true;
+    fetch("/api/sample-domains")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (
+          isMounted &&
+          data?.success &&
+          Array.isArray(data.domains) &&
+          data.domains.length > 0
+        ) {
+          setSampleDomains(data.domains);
+        }
+      })
+      .catch(() => {
+        // Keep the fallback list on network failure
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Clean domain helper
   const cleanInput = (raw: string): string => {
@@ -167,7 +201,7 @@ export const DomainForm: React.FC<DomainFormProps> = ({
 
           <div className="flex items-center gap-2 flex-wrap text-[11px]">
             <span className="text-[#aab2c0]/40 uppercase font-mono text-[10px]">Examples:</span>
-            {["speedtest.net", "cloudflare.com", "opensignal.com", "useinsider.com", "codecademy.com"].map((ex) => (
+            {sampleDomains.map((ex) => (
               <button
                 key={ex}
                 type="button"

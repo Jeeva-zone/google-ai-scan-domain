@@ -1,0 +1,10 @@
+# Orange Test — sample domains
+# One domain per line. Lines starting with # and blank lines are ignored.
+# These domains appear as quick-start example chips on the web UI
+# (served by GET /api/sample-domains). To add more domains, just append
+# a new line here — changes are reflected in the app without any code changes.
+speedtest.net
+cloudflare.com
+opensignal.com
+useinsider.com
+codecademy.com

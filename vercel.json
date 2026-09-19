@@ -20,6 +20,10 @@
       "destination": "/api/health.py"
     },
     {
+      "source": "/api/sample-domains",
+      "destination": "/api/sample_domains.py"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
