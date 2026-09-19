@@ -23,11 +23,12 @@ Cloudflare matching — runs inside the visitor's browser. Nothing is sent to a 
 9. [Limitations & honest caveats](#%EF%B8%8F-limitations--honest-caveats)
 10. [Browser requirements](#%EF%B8%8F-browser-requirements)
 11. [Built & hosted on Freebuff Cloud](#%EF%B8%8F-built--hosted-on-freebuff-cloud)
-12. [Running it locally](#%EF%B8%8F-running-it-locally)
-13. [Reproducing the verification](#-reproducing-the-verification)
-14. [Troubleshooting](#-troubleshooting)
-15. [Client-side code map](#-client-side-code-map)
-16. [Branch workflow](#-branch-workflow)
+12. [Deploying this build to Cloudflare Workers](#-deploying-this-build-to-cloudflare-workers)
+13. [Running it locally](#%EF%B8%8F-running-it-locally)
+14. [Reproducing the verification](#-reproducing-the-verification)
+15. [Troubleshooting](#-troubleshooting)
+16. [Client-side code map](#-client-side-code-map)
+17. [Branch workflow](#-branch-workflow)
 
 ---
 
@@ -360,6 +361,30 @@ freebuff-deploy env unset MAX_CANDIDATES
 - `sample-domains.txt` is also bundled at build time, so the example chips render without a backend.
 - No server process and no Python runtime exist in production — the scanner's Node/Python code is
   inert there.
+
+---
+
+## 🟠 Deploying this build to Cloudflare Workers
+
+Because this version needs **no backend**, it can be deployed anywhere that serves static files.
+Cloudflare Workers (assets-only) supports a genuine one-click deploy:
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Jeeva-zone/google-ai-scan-domain)
+
+| Stage | Command |
+| :--- | :--- |
+| Install | `npm install` |
+| Build | `npm run build` → static `dist/` |
+| Deploy | `npm run deploy` (`npx wrangler deploy`) |
+| Validate first | `npx wrangler deploy --dry-run` — local only, needs no login or API token |
+
+Configuration lives in [`wrangler.jsonc`](wrangler.jsonc) (assets-only Worker, `directory: ./dist`,
+SPA fallback) and [`public/_headers`](public/_headers) (security headers, long-lived caching for the
+hashed bundle, a 1-hour TTL for the CIDR snapshot). Full instructions are in the
+[README](README.md#-cloudflare-workers-one-click-deploy).
+
+Behaviour on Cloudflare is **identical to the Freebuff deployment**: the Worker serves `dist/` only,
+so `/api/*` returns `index.html` and the app runs the browser engine described in this document.
 
 ---
 

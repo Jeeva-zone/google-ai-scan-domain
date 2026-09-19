@@ -2,6 +2,7 @@
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FJeeva-zone%2Fgoogle-ai-scan-domain&project-name=orange-test&repository-name=orange-test&env=RATE_LIMIT_SECONDS,MAX_CANDIDATES,DNS_CONCURRENCY,REQUEST_TIMEOUT,MAX_RESULTS,CF_CACHE_TTL_SECONDS)
 [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/Jeeva-zone/google-ai-scan-domain)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Jeeva-zone/google-ai-scan-domain)
 
 > **Passive subdomain discovery & Cloudflare IP classification engine.**  
 > Effortlessly uncover public subdomains from Certificate Transparency logs and identify which ones are actively fronted by Cloudflare proxy network ranges.
@@ -19,12 +20,13 @@
 
 ## 🚀 One-Click Deployment
 
-Deploy your own production-ready instance in seconds to **Vercel** or **Netlify**:
+Deploy your own production-ready instance in seconds to **Vercel**, **Netlify** or **Cloudflare Workers**:
 
 | Platform | One-Click Deploy Button | Configuration Notes |
 | :--- | :--- | :--- |
 | **Vercel** | [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FJeeva-zone%2Fgoogle-ai-scan-domain&project-name=orange-test&repository-name=orange-test&env=RATE_LIMIT_SECONDS,MAX_CANDIDATES,DNS_CONCURRENCY,REQUEST_TIMEOUT,MAX_RESULTS,CF_CACHE_TTL_SECONDS) | Uses `vercel.json` rewrites and Python serverless handlers under `/api`. |
 | **Netlify** | [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/Jeeva-zone/google-ai-scan-domain) | Uses `netlify.toml` redirects and Python Netlify Functions in `netlify/functions`. |
+| **Cloudflare Workers** | [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Jeeva-zone/google-ai-scan-domain) | Uses `wrangler.jsonc` (assets-only Worker serving `dist/`) and `public/_headers`. Static hosting — the browser engine scans. |
 
 *(Deploy links above already point at `Jeeva-zone/google-ai-scan-domain` — no edits needed.)*
 
@@ -43,6 +45,7 @@ Deploy your own production-ready instance in seconds to **Vercel** or **Netlify*
 - [Configuration & Environment Variables](#-configuration--environment-variables)
 - [Local Development Setup](#-local-development-setup)
 - [Vercel & Netlify Deployment Guide](#-vercel--netlify-deployment-guide)
+- [Cloudflare Workers One-Click Deploy](#-cloudflare-workers-one-click-deploy)
 - [Freebuff Cloud — Build & Hosting](#%EF%B8%8F-freebuff-cloud--build--hosting)
 - [Docker & Container Deployment](#-docker--container-deployment)
 - [Troubleshooting & FAQs](#-troubleshooting--faqs)
@@ -82,7 +85,7 @@ Orange Test ships **two interchangeable scan engines**. The app probes `/api/hea
 
 | | Server engine | Browser engine |
 | :--- | :--- | :--- |
-| **Used when** | A backend is available (local dev, Node/Vercel/Netlify deployment) | The app is served as a static site (e.g. Freebuff static hosting) |
+| **Used when** | A backend is available (local dev, Node/Vercel/Netlify deployment) | The app is served as a static site (e.g. Freebuff static hosting, Cloudflare Workers) |
 | **Discovery** | `crt.sh` via Python (`urllib`) | `crt.sh` fetched directly from the browser (CORS-enabled) |
 | **DNS resolution** | Python `socket.getaddrinfo` thread pool | DNS-over-HTTPS (`cloudflare-dns.com/dns-query`, A + AAAA) |
 | **Cloudflare ranges** | Fetched live from Cloudflare on every cache miss | Bundled snapshot at `public/cloudflare-ranges.txt` |
@@ -420,6 +423,70 @@ Orange Test is built with native out-of-the-box support for both **Vercel** and 
    - **Publish directory**: `dist`
    - **Functions directory**: `netlify/functions`
 5. Click **Deploy site**. Netlify will host the frontend and execute the serverless Python functions under `/.netlify/functions/`.
+
+---
+
+## 🟠 Cloudflare Workers One-Click Deploy
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Jeeva-zone/google-ai-scan-domain)
+
+Deploy your own copy to Cloudflare's global edge in a few clicks — no secrets, no bindings to provision,
+and it stays on the free plan.
+
+| Property | Value |
+| :--- | :--- |
+| Config file | [`wrangler.jsonc`](wrangler.jsonc) — **assets-only** Worker (no `main` entrypoint) |
+| Build command | `npm run build` (Vite → `dist/`) |
+| Deploy command | `npm run deploy` (`npx wrangler deploy`) |
+| Uploaded directory | `./dist` |
+| SPA routing | `not_found_handling: "single-page-application"` |
+| Response headers | [`public/_headers`](public/_headers) |
+
+### How to deploy
+
+1. Click the button above — Cloudflare clones the repository into your own GitHub account.
+2. On the setup page, accept the auto-detected commands (build `npm run build`, deploy `npx wrangler deploy`) and optionally rename the Worker.
+3. Press **Deploy**. Your copy goes live at `https://<name>.<your-subdomain>.workers.dev`.
+
+> The button clones the repository's **default branch** (`main`), which carries the same `wrangler.jsonc`.
+
+### Verify locally before you deploy
+
+```bash
+npm run build
+npx wrangler deploy --dry-run   # validates wrangler.jsonc and lists the assets that would upload
+npx wrangler dev                # serves the built bundle through Wrangler locally
+```
+
+`--dry-run` needs no Cloudflare login and no API token — it is a pure local check.
+
+### What runs where
+
+Because `wrangler.jsonc` declares an assets-only Worker, Cloudflare serves the files in `dist/`
+directly from its edge — there is no server process and no Worker script executing per request.
+
+- **`GET /api/*`** is answered by the SPA fallback with `index.html`, so the app detects that no
+  backend exists and scans in the browser — the same behaviour as
+  [the Freebuff deployment](#%EF%B8%8F-freebuff-cloud--build--hosting). See [CLIENT-VERSION.md](CLIENT-VERSION.md).
+- **`public/_headers`** hardens responses (`X-Content-Type-Options`, `Referrer-Policy`,
+  `X-Frame-Options`, `Permissions-Policy`), gives the content-hashed `assets/*` bundle a one-year
+  `immutable` cache, and keeps `cloudflare-ranges.txt` on a 1-hour TTL so refreshed CIDR snapshots
+  propagate quickly. It deliberately sets **no** `Content-Security-Policy` — the app calls
+  `crt.sh` and `cloudflare-dns.com` from the browser and downloads CSV through a `blob:` URL, so a
+  policy would have to be maintained alongside those sources.
+- **`sample-domains.txt`** is compiled into the bundle at build time, so the example chips work
+  without any API.
+
+### Prefer Cloudflare Pages?
+
+The Deploy to Cloudflare button supports **Workers** only, but Pages works just as well — connect the
+repository in the dashboard under **Workers & Pages → Create → Pages → Connect to Git** with:
+
+- **Build command:** `npm run build`
+- **Build output directory:** `dist`
+
+`public/_headers` is honoured by Pages too. Unlike Workers, Pages does not read `wrangler.jsonc`,
+so no config file is needed for that route.
 
 ---
 
