@@ -6,6 +6,11 @@
 > **Passive subdomain discovery & Cloudflare IP classification engine.**  
 > Effortlessly uncover public subdomains from Certificate Transparency logs and identify which ones are actively fronted by Cloudflare proxy network ranges.
 
+> **🌿 Branch: `client-version`** — this branch documents the **client-side build** currently live at
+> <https://orangecloud.freebuff.app>. Scans run entirely in the browser (crt.sh + DNS-over-HTTPS +
+> a bundled Cloudflare CIDR snapshot) with no backend required. See **[CLIENT-VERSION.md](CLIENT-VERSION.md)**
+> for full details, verification evidence and limitations.
+
 ---
 
 ## 🚀 One-Click Deployment
@@ -23,6 +28,7 @@ Deploy your own production-ready instance in seconds to **Vercel** or **Netlify*
 
 ## 📋 Table of Contents
 
+- [Client-Side Version (this branch)](CLIENT-VERSION.md)
 - [Overview & Architecture](#-overview--architecture)
 - [Scan Engines](#-scan-engines)
 - [Web UI Usage Manual](#-web-ui-usage-manual)
@@ -80,6 +86,9 @@ Orange Test ships **two interchangeable scan engines**. The app probes `/api/hea
 | **Rate limiting** | Yes (`RATE_LIMIT_SECONDS`) | Not applicable — nothing to protect server-side |
 
 **How the switch works:** the app requests `POST /api/scan`. Static hosts answer unknown routes with the SPA HTML (or reject POSTs with `405`), which the app detects and transparently re-runs the scan in-browser. The active engine is shown in the header (`Engine: Browser (CT + DoH)` / `Engine: Server (CT + CIDR)`).
+
+> **This branch ships the browser engine in production.** The live deployment at
+> <https://orangecloud.freebuff.app> runs it exclusively — see [CLIENT-VERSION.md](CLIENT-VERSION.md).
 
 **Browser engine notes:**
 - The CIDR matcher in `src/lib/cidr.ts` is cross-validated against Python's `ipaddress` module, so both engines classify IPs identically (IPv4, IPv6, and boundary cases).
